@@ -57,7 +57,16 @@ class GitHubAPI {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || `GitHub API error: ${response.status}`);
+            const errorMessage = error.message || `GitHub API error: ${response.status}`;
+            
+            // Handle empty repository case gracefully
+            if (errorMessage.includes('empty') || errorMessage.includes('This repository is empty')) {
+                const emptyError = new Error('REPO_EMPTY');
+                emptyError.isEmpty = true;
+                throw emptyError;
+            }
+            
+            throw new Error(errorMessage);
         }
 
         // Handle 204 No Content
@@ -122,8 +131,8 @@ class GitHubAPI {
                 size: data.size
             };
         } catch (error) {
-            // Handle both 404 and empty repo messages
-            if (error.message.includes('404') || error.message.includes('Not Found') || error.message.includes('empty')) {
+            // Handle empty repo and file not found
+            if (error.isEmpty || error.message.includes('404') || error.message.includes('Not Found') || error.message.includes('empty') || error.message === 'REPO_EMPTY') {
                 return null;
             }
             throw error;
@@ -142,7 +151,7 @@ class GitHubAPI {
                 size: data.size
             };
         } catch (error) {
-            if (error.message.includes('404') || error.message.includes('Not Found') || error.message.includes('empty')) {
+            if (error.isEmpty || error.message.includes('404') || error.message.includes('Not Found') || error.message.includes('empty') || error.message === 'REPO_EMPTY') {
                 return null;
             }
             throw error;
@@ -252,7 +261,7 @@ class GitHubAPI {
                 sha: item.sha
             }));
         } catch (error) {
-            if (error.message.includes('404') || error.message.includes('Not Found') || error.message.includes('empty')) {
+            if (error.isEmpty || error.message.includes('404') || error.message.includes('Not Found') || error.message.includes('empty') || error.message === 'REPO_EMPTY') {
                 return [];
             }
             throw error;
